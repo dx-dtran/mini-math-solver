@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import time
 from datasets import load_dataset
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 from torch.utils.data import DataLoader
@@ -84,10 +85,12 @@ dataset = load_dataset('json', data_files='svamp_train.json', split='train')
 
 tokenized_dataset = dataset.map(tokenize_function)
 
-optimizer = torch.optim.Adam(student_model.parameters(), lr=1e-5)
+optimizer = torch.optim.AdamW(student_model.parameters(), lr=1e-5)
 num_epochs = 10
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
-accumulation_steps = 16
+accumulation_steps = 32
+
+start = time.time()
 
 # Training loop
 for epoch in range(num_epochs):
@@ -123,3 +126,4 @@ for epoch in range(num_epochs):
             optimizer.zero_grad()
 
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
+    print('time: {:0.2f} seconds'.format(time.time() - start))
