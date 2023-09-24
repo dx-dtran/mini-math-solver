@@ -81,13 +81,13 @@ tokenized_train_dataset = train_val_dataset["train"].map(tokenize_function)
 tokenized_val_dataset = train_val_dataset["test"].map(tokenize_function)
 
 # Create DataLoaders to handle batching
-train_loader = DataLoader(tokenized_train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(tokenized_val_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(tokenized_train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(tokenized_val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn)
 
 optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
-num_epochs = 10
+num_epochs = 100
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
-accumulation_steps = 32
+accumulation_steps = 8
 
 start = time.time()
 
@@ -136,7 +136,7 @@ for epoch in range(num_epochs):
             pred_attention_mask = batch['pred']['attention_mask'].to(device)
             pred_labels = batch['label']['input_ids'].to(device)
 
-            pred_outputs = student_model.generate(input_ids=pred_inputs, attention_mask=pred_attention_mask)
+            pred_outputs = student_model.generate(input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32)
             val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
             val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
 
