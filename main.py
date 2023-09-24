@@ -78,7 +78,7 @@ train_val_dataset = dataset.train_test_split(test_size=0.1)
 
 # Apply the tokenize function to all examples in the dataset
 tokenized_train_dataset = train_val_dataset["train"].map(tokenize_function)
-tokenized_val_dataset = train_val_dataset["validation"].map(tokenize_function)
+tokenized_val_dataset = train_val_dataset["test"].map(tokenize_function)
 
 # Create DataLoaders to handle batching
 train_loader = DataLoader(tokenized_train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
