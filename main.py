@@ -23,16 +23,16 @@ def compute_equation_acc(preds, labels):
 def tokenize_function(examples):
     # Assuming that your data has 'pred', 'expl', 'label', and 'rationale' as the keys
     pred_encodings = tokenizer(
-        examples['pred'], truncation=True, padding='max_length', max_length=512, return_tensors='pt'
+        examples['pred'], truncation=True, padding='max_length', max_length=128, return_tensors='pt'
     )
     expl_encodings = tokenizer(
-        examples['expl'], truncation=True, padding='max_length', max_length=512, return_tensors='pt'
+        examples['expl'], truncation=True, padding='max_length', max_length=128, return_tensors='pt'
     )
     label_encodings = tokenizer(
-        examples['label'], truncation=True, padding='max_length', max_length=512, return_tensors='pt'
+        examples['label'], truncation=True, padding='max_length', max_length=128, return_tensors='pt'
     )
     rationale_encodings = tokenizer(
-        examples['rationale'], truncation=True, padding='max_length', max_length=512, return_tensors='pt'
+        examples['rationale'], truncation=True, padding='max_length', max_length=128, return_tensors='pt'
     )
 
     return {
@@ -71,21 +71,20 @@ tokenizer = AutoTokenizer.from_pretrained('google/t5-v1_1-base')
 student_model = T5ForConditionalGeneration.from_pretrained('google/t5-v1_1-base')
 student_model = student_model.to(device)
 
-# Load the dataset
 dataset = load_dataset('json', data_files='svamp_train.json', split='train')
+
+# Split the dataset
+train_val_dataset = dataset.train_test_split(test_size=0.1)
 
 # Apply the tokenize function to all examples in the dataset
-tokenized_dataset = dataset.map(tokenize_function)
+tokenized_train_dataset = train_val_dataset["train"].map(tokenize_function)
+tokenized_val_dataset = train_val_dataset["validation"].map(tokenize_function)
 
-# Create a DataLoader to handle batching
-train_loader = DataLoader(tokenized_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
+# Create DataLoaders to handle batching
+train_loader = DataLoader(tokenized_train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(tokenized_val_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
 
-# Load the dataset
-dataset = load_dataset('json', data_files='svamp_train.json', split='train')
-
-tokenized_dataset = dataset.map(tokenize_function)
-
-optimizer = torch.optim.AdamW(student_model.parameters(), lr=1e-5)
+optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
 num_epochs = 10
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
 accumulation_steps = 32
@@ -126,4 +125,21 @@ for epoch in range(num_epochs):
             optimizer.zero_grad()
 
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
+    print('time: {:0.2f} seconds'.format(time.time() - start))
+
+    # Evaluation
+    student_model.eval()
+    val_preds, val_labels = [], []
+    with torch.no_grad():
+        for i, batch in enumerate(val_loader):
+            pred_inputs = batch['pred']['input_ids'].to(device)
+            pred_attention_mask = batch['pred']['attention_mask'].to(device)
+            pred_labels = batch['label']['input_ids'].to(device)
+
+            pred_outputs = student_model.generate(input_ids=pred_inputs, attention_mask=pred_attention_mask)
+            val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
+            val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
+
+    val_acc = compute_equation_acc(val_preds, val_labels)
+    print(f'Validation Accuracy epoch {epoch + 1}: {val_acc:.2f}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
