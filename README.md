@@ -4,5 +4,5 @@
 ```shell
 $ python -m venv venv
 $ source venv/bin/activate
-$ pip install torch numpy transformers datasets
+$ pip install torch numpy transformers datasets sentencepiece protobuf
 ```

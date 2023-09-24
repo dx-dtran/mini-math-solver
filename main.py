@@ -77,7 +77,7 @@ dataset = load_dataset('json', data_files='svamp_train.json', split='train')
 tokenized_dataset = dataset.map(tokenize_function)
 
 # Create a DataLoader to handle batching
-train_loader = DataLoader(tokenized_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
+train_loader = DataLoader(tokenized_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
 
 # Load the dataset
 dataset = load_dataset('json', data_files='svamp_train.json', split='train')
@@ -87,12 +87,13 @@ tokenized_dataset = dataset.map(tokenize_function)
 optimizer = torch.optim.Adam(student_model.parameters(), lr=1e-5)
 num_epochs = 10
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
+accumulation_steps = 16
 
 # Training loop
 for epoch in range(num_epochs):
     student_model.train()
-    total_loss = 0
-    for batch in train_loader:
+    running_loss = 0.0
+    for i, batch in enumerate(train_loader):
         optimizer.zero_grad()
 
         # Move batch data to the same device as the model (i.e., GPU if available)
@@ -112,11 +113,13 @@ for epoch in range(num_epochs):
 
         # Combined loss
         loss = alpha * pred_outputs.loss + (1 - alpha) * expl_outputs.loss
+        loss = loss / accumulation_steps  # Normalize the loss
 
         # Backward pass and optimization
         loss.backward()
-        optimizer.step()
+        running_loss += loss.item() * accumulation_steps  # undo the division to accumulate the actual loss
+        if (i + 1) % accumulation_steps == 0:  # Step is zero-indexed
+            optimizer.step()  # Update the model parameters
+            optimizer.zero_grad()
 
-        total_loss += loss.item()
-
-    print(f'Training loss epoch {epoch + 1}: {total_loss / len(train_loader)}')
+    print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')

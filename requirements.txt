@@ -1,4 +1,6 @@
-torch==1.9.0
-numpy==1.21.0
-datasets==1.11.0
-transformers==4.11.3
+torch
+numpy
+datasets
+transformers
+sentencepiece
+protobuf
