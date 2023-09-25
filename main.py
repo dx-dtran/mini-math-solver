@@ -67,8 +67,8 @@ def collate_fn(batch):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Using {device} device')
 
-tokenizer = AutoTokenizer.from_pretrained('google/t5-v1_1-base')
-student_model = T5ForConditionalGeneration.from_pretrained('google/t5-v1_1-base')
+tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-base')
+student_model = T5ForConditionalGeneration.from_pretrained('google/flan-t5-base')
 student_model = student_model.to(device)
 
 dataset = load_dataset('json', data_files='svamp_train.json', split='train')
@@ -130,16 +130,26 @@ for epoch in range(num_epochs):
     # Evaluation
     student_model.eval()
     val_preds, val_labels = [], []
+    inputs_list = []
     with torch.no_grad():
         for i, batch in enumerate(val_loader):
             pred_inputs = batch['pred']['input_ids'].to(device)
             pred_attention_mask = batch['pred']['attention_mask'].to(device)
             pred_labels = batch['label']['input_ids'].to(device)
 
-            pred_outputs = student_model.generate(input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32)
+            pred_outputs = student_model.generate(
+                input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32
+            )
             val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
             val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
 
-    val_acc = compute_equation_acc(val_preds, val_labels)
-    print(f'Validation Accuracy epoch {epoch + 1}: {val_acc:.2f}')
+            inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
+
+    # val_acc = compute_equation_acc(val_preds, val_labels)
+    print(val_preds)
+
+    for i, j in zip(inputs_list, val_preds):
+        print('{}:\n{}\n\n\n'.format(i, j))
+
+    print(f'Validation Accuracy epoch {epoch + 1}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
