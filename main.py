@@ -90,7 +90,7 @@ num_epochs = 100
 accumulation_steps = 8
 total_data_points = len(train_loader)
 effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
-total_iterations = (total_data_points // effective_batch_size) * num_epochs  # Recalculate total_iterations
+total_iterations = int((total_data_points / effective_batch_size) * num_epochs) # Recalculate total_iterations
 
 print("num iterations: ", total_iterations)
 
@@ -171,4 +171,4 @@ for epoch in range(num_epochs):
     print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
 
-# TODO save the model
+    # TODO save the model
