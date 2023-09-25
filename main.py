@@ -86,7 +86,7 @@ BATCH_SIZE = 8
 train_loader = DataLoader(tokenized_train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(tokenized_val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
-num_epochs = 100
+num_epochs = 200
 accumulation_steps = 8
 total_data_points = len(tokenized_train_dataset)
 effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
@@ -98,6 +98,8 @@ optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-4)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_iterations)
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
 start = time.time()
+save_directory = 'checkpoints'
+save_every = 20
 
 # Training loop
 for epoch in range(num_epochs):
@@ -140,38 +142,41 @@ for epoch in range(num_epochs):
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
 
-    # Evaluation
-    student_model.eval()
-    val_preds, val_labels = [], []
-    inputs_list, expl_list = [], []
-    with torch.no_grad():
-        for i, batch in enumerate(val_loader):
-            pred_inputs = batch['pred']['input_ids'].to(device)
-            pred_attention_mask = batch['pred']['attention_mask'].to(device)
+    # Save the model and evaluate the model every few epochs
+    if epoch == 0 or (epoch + 1) % save_every == 0:
+        # Evaluation
+        student_model.eval()
+        val_preds, val_labels = [], []
+        inputs_list, expl_list = [], []
+        with torch.no_grad():
+            for i, batch in enumerate(val_loader):
+                pred_inputs = batch['pred']['input_ids'].to(device)
+                pred_attention_mask = batch['pred']['attention_mask'].to(device)
 
-            pred_labels = batch['label']['input_ids'].to(device)
-            pred_outputs = student_model.generate(
-                input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32
-            )
+                pred_labels = batch['label']['input_ids'].to(device)
+                pred_outputs = student_model.generate(
+                    input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32
+                )
 
-            expl_inputs = batch['expl']['input_ids'].to(device)
-            expl_attention_mask = batch['expl']['attention_mask'].to(device)
-            expl_outputs = student_model.generate(
-                input_ids=expl_inputs, attention_mask=expl_attention_mask, max_new_tokens=32
-            )
+                expl_inputs = batch['expl']['input_ids'].to(device)
+                expl_attention_mask = batch['expl']['attention_mask'].to(device)
+                expl_outputs = student_model.generate(
+                    input_ids=expl_inputs, attention_mask=expl_attention_mask, max_new_tokens=32
+                )
 
-            val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
-            val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
+                val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
+                val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
 
-            inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
-            expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
+                inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
+                expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
 
-    val_acc = compute_equation_acc(val_preds, val_labels)
+        val_acc = compute_equation_acc(val_preds, val_labels)
 
-    for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
-        print('prompt: {}:\nexplain: {}\nequation: {}\n\n'.format(i.split('predict: ')[1], j, k))
+        for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
+            print('prompt: {}:\nthought: {}\nresult: {}\n\n'.format(i.split('predict: ')[1], j, k))
 
-    print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
-    print('time: {:0.2f} seconds'.format(time.time() - start))
+        print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
+        print('time: {:0.2f} seconds'.format(time.time() - start))
 
-    # TODO save the model
+        tokenizer.save_pretrained(save_directory)
+        student_model.save_pretrained(save_directory)
