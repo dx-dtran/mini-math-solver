@@ -142,7 +142,7 @@ for epoch in range(num_epochs):
             )
 
             expl_inputs = batch['expl']['input_ids'].to(device)
-            expl_attention_mask = batch['expl']['input_ids'].to(device)
+            expl_attention_mask = batch['expl']['attention_mask'].to(device)
             expl_outputs = student_model.generate(
                 input_ids=expl_inputs, attention_mask=expl_attention_mask, max_new_tokens=32
             )
@@ -154,10 +154,10 @@ for epoch in range(num_epochs):
             expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
 
     # val_acc = compute_equation_acc(val_preds, val_labels)
-    print(val_preds)
+    # print(val_preds)
 
     for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
-        print('{}:\n{}\n{}\n\n'.format(i, j, k))
+        print('prompt: {}:\nexplain: {}\nequation: {}\n\n'.format(i, j, k))
 
     print(f'Validation Accuracy epoch {epoch + 1}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
