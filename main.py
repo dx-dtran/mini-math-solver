@@ -67,8 +67,8 @@ def collate_fn(batch):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Using {device} device')
 
-tokenizer = AutoTokenizer.from_pretrained('google/t5-v1_1-base')
-student_model = T5ForConditionalGeneration.from_pretrained('google/t5-v1_1-base')
+tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-base')
+student_model = T5ForConditionalGeneration.from_pretrained('google/flan-t5-base')
 student_model = student_model.to(device)
 
 dataset = load_dataset('json', data_files='svamp_train.json', split='train')
@@ -80,21 +80,32 @@ train_val_dataset = dataset.train_test_split(test_size=0.1)
 tokenized_train_dataset = train_val_dataset["train"].map(tokenize_function)
 tokenized_val_dataset = train_val_dataset["test"].map(tokenize_function)
 
+BATCH_SIZE = 8
+
 # Create DataLoaders to handle batching
-train_loader = DataLoader(tokenized_train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(tokenized_val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(tokenized_train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(tokenized_val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+
+num_epochs = 200
+accumulation_steps = 8
+total_data_points = len(tokenized_train_dataset)
+effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
+total_iterations = int((total_data_points / effective_batch_size) * num_epochs)  # Recalculate total_iterations
+
+print("num iterations: ", total_iterations)
 
 optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-4)
-num_epochs = 100
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_iterations)
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
-accumulation_steps = 8
-
 start = time.time()
+save_directory = 'checkpoints'
+save_every = 20
 
 # Training loop
 for epoch in range(num_epochs):
     student_model.train()
     running_loss = 0.0
+    current_lr = 0.0
     for i, batch in enumerate(train_loader):
         optimizer.zero_grad()
 
@@ -123,23 +134,49 @@ for epoch in range(num_epochs):
         if (i + 1) % accumulation_steps == 0:  # Step is zero-indexed
             optimizer.step()  # Update the model parameters
             optimizer.zero_grad()
+            scheduler.step()
 
+            current_lr = optimizer.param_groups[0]['lr']
+
+    print(f'Current learning rate: {current_lr}')
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
 
-    # Evaluation
-    student_model.eval()
-    val_preds, val_labels = [], []
-    with torch.no_grad():
-        for i, batch in enumerate(val_loader):
-            pred_inputs = batch['pred']['input_ids'].to(device)
-            pred_attention_mask = batch['pred']['attention_mask'].to(device)
-            pred_labels = batch['label']['input_ids'].to(device)
+    # Save the model and evaluate the model every few epochs
+    if epoch == 0 or (epoch + 1) % save_every == 0:
+        # Evaluation
+        student_model.eval()
+        val_preds, val_labels = [], []
+        inputs_list, expl_list = [], []
+        with torch.no_grad():
+            for i, batch in enumerate(val_loader):
+                pred_inputs = batch['pred']['input_ids'].to(device)
+                pred_attention_mask = batch['pred']['attention_mask'].to(device)
 
-            pred_outputs = student_model.generate(input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32)
-            val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
-            val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
+                pred_labels = batch['label']['input_ids'].to(device)
+                pred_outputs = student_model.generate(
+                    input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32
+                )
 
-    val_acc = compute_equation_acc(val_preds, val_labels)
-    print(f'Validation Accuracy epoch {epoch + 1}: {val_acc:.2f}')
-    print('time: {:0.2f} seconds'.format(time.time() - start))
+                expl_inputs = batch['expl']['input_ids'].to(device)
+                expl_attention_mask = batch['expl']['attention_mask'].to(device)
+                expl_outputs = student_model.generate(
+                    input_ids=expl_inputs, attention_mask=expl_attention_mask, max_new_tokens=32
+                )
+
+                val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
+                val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
+
+                inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
+                expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
+
+        val_acc = compute_equation_acc(val_preds, val_labels)
+
+        for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
+            print('prompt: {}\nthought: {}\nresult: {}\n\n'.format(i.split('predict: ')[1], j, k))
+
+        print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
+        print('time: {:0.2f} seconds'.format(time.time() - start))
+
+        tokenizer.save_pretrained(save_directory)
+        student_model.save_pretrained(save_directory)
