@@ -130,26 +130,35 @@ for epoch in range(num_epochs):
     # Evaluation
     student_model.eval()
     val_preds, val_labels = [], []
-    inputs_list = []
+    inputs_list, expl_list = [], []
     with torch.no_grad():
         for i, batch in enumerate(val_loader):
             pred_inputs = batch['pred']['input_ids'].to(device)
             pred_attention_mask = batch['pred']['attention_mask'].to(device)
-            pred_labels = batch['label']['input_ids'].to(device)
 
+            pred_labels = batch['label']['input_ids'].to(device)
             pred_outputs = student_model.generate(
                 input_ids=pred_inputs, attention_mask=pred_attention_mask, max_new_tokens=32
             )
+
+            expl_inputs = batch['expl']['input_ids'].to(device)
+            expl_attention_mask = batch['expl']['input_ids'].to(device)
+            expl_outputs = student_model.generate(
+                input_ids=expl_inputs, attention_mask=expl_attention_mask, max_new_tokens=32
+            )
+
             val_preds.extend(tokenizer.batch_decode(pred_outputs, skip_special_tokens=True))
             val_labels.extend(tokenizer.batch_decode(pred_labels, skip_special_tokens=True))
 
             inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
+            expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
 
     # val_acc = compute_equation_acc(val_preds, val_labels)
     print(val_preds)
 
-    for i, j in zip(inputs_list, val_preds):
-        print('{}:\n{}\n\n\n'.format(i, j))
+    for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
+        print('{}:\n{}\n{}\n\n'.format(i, j, k))
 
     print(f'Validation Accuracy epoch {epoch + 1}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
+    print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
