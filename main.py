@@ -88,7 +88,7 @@ val_loader = DataLoader(tokenized_val_dataset, batch_size=BATCH_SIZE, shuffle=Fa
 
 num_epochs = 100
 accumulation_steps = 8
-total_data_points = len(train_loader)
+total_data_points = len(tokenized_train_dataset)
 effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
 total_iterations = int((total_data_points / effective_batch_size) * num_epochs) # Recalculate total_iterations
 
