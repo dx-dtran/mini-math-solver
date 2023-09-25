@@ -169,7 +169,7 @@ for epoch in range(num_epochs):
     val_acc = compute_equation_acc(val_preds, val_labels)
 
     for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
-        print('prompt: {}:\nexplain: {}\nequation: {}\n\n'.format(i.split('predict: ')[0], j, k))
+        print('prompt: {}:\nexplain: {}\nequation: {}\n\n'.format(i.split('predict: ')[1], j, k))
 
     print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
