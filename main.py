@@ -90,7 +90,7 @@ num_epochs = 100
 accumulation_steps = 8
 total_data_points = len(tokenized_train_dataset)
 effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
-total_iterations = int((total_data_points / effective_batch_size) * num_epochs) # Recalculate total_iterations
+total_iterations = int((total_data_points / effective_batch_size) * num_epochs)  # Recalculate total_iterations
 
 print("num iterations: ", total_iterations)
 
@@ -99,7 +99,6 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_it
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
 start = time.time()
 
-# TODO: calculate the LLM's math performance before we do training
 # Training loop
 for epoch in range(num_epochs):
     student_model.train()
@@ -133,6 +132,9 @@ for epoch in range(num_epochs):
             optimizer.step()  # Update the model parameters
             optimizer.zero_grad()
             scheduler.step()
+
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f'Current learning rate: {current_lr}')
 
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
