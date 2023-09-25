@@ -5,7 +5,7 @@ tokenizer = AutoTokenizer.from_pretrained("checkpoints")
 model = AutoModelForSeq2SeqLM.from_pretrained("checkpoints")
 
 for _ in range(10):
-    prompt = input("enter a prompt: ")
+    prompt = input("Enter a math question: ")
     pred_text = "predict: {}".format(prompt)
     expl_text = "explain: {}".format(prompt)
     inputs = tokenizer(pred_text, return_tensors="pt", truncation=True, padding=True)
@@ -20,5 +20,5 @@ for _ in range(10):
     expl_out_text = tokenizer.decode(expl_outputs[0], skip_special_tokens=True)
 
     # For example, print the predicted text
-    print(expl_out_text)
-    print("the answer is: ", predicted_text)
+    print("Let me think. " + expl_out_text)
+    print("The answer is: " + predicted_text)
