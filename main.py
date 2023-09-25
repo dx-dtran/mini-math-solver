@@ -84,7 +84,7 @@ tokenized_val_dataset = train_val_dataset["test"].map(tokenize_function)
 train_loader = DataLoader(tokenized_train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(tokenized_val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn)
 
-optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-5)
+optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-4)
 num_epochs = 100
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
 accumulation_steps = 8
