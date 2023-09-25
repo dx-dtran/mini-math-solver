@@ -80,17 +80,26 @@ train_val_dataset = dataset.train_test_split(test_size=0.1)
 tokenized_train_dataset = train_val_dataset["train"].map(tokenize_function)
 tokenized_val_dataset = train_val_dataset["test"].map(tokenize_function)
 
+BATCH_SIZE = 8
+
 # Create DataLoaders to handle batching
-train_loader = DataLoader(tokenized_train_dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(tokenized_val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(tokenized_train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(tokenized_val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+
+num_epochs = 100
+accumulation_steps = 8
+total_data_points = len(train_loader)
+effective_batch_size = BATCH_SIZE * accumulation_steps  # The effective batch size
+total_iterations = (total_data_points // effective_batch_size) * num_epochs  # Recalculate total_iterations
+
+print("num iterations: ", total_iterations)
 
 optimizer = torch.optim.AdamW(student_model.parameters(), lr=5e-4)
-num_epochs = 100
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_iterations)
 alpha = 0.5  # Assume an equal weight for simplicity, adjust as needed
-accumulation_steps = 8
-
 start = time.time()
 
+# TODO: calculate the LLM's math performance before we do training
 # Training loop
 for epoch in range(num_epochs):
     student_model.train()
@@ -123,6 +132,7 @@ for epoch in range(num_epochs):
         if (i + 1) % accumulation_steps == 0:  # Step is zero-indexed
             optimizer.step()  # Update the model parameters
             optimizer.zero_grad()
+            scheduler.step()
 
     print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
@@ -153,12 +163,12 @@ for epoch in range(num_epochs):
             inputs_list.extend(tokenizer.batch_decode(pred_inputs, skip_special_tokens=True))
             expl_list.extend(tokenizer.batch_decode(expl_outputs, skip_special_tokens=True))
 
-    # val_acc = compute_equation_acc(val_preds, val_labels)
-    # print(val_preds)
+    val_acc = compute_equation_acc(val_preds, val_labels)
 
     for i, j, k in zip(inputs_list[:5], expl_list[:5], val_preds[:5]):
         print('prompt: {}:\nexplain: {}\nequation: {}\n\n'.format(i, j, k))
 
-    print(f'Validation Accuracy epoch {epoch + 1}')
+    print(f'Validation Accuracy epoch {epoch + 1}, Accuracy: {val_acc}')
     print('time: {:0.2f} seconds'.format(time.time() - start))
-    print(f'Training loss epoch {epoch + 1}: {running_loss / len(train_loader)}')
+
+# TODO save the model
