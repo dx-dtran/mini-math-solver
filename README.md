@@ -1,6 +1,6 @@
 # Mini Math Solver
 
-A small language model capable of solving math word problems
+**A small language model capable of solving math word problems**
 
 When trained on a single GPU for one hour with only 900 example word problems, a 250M-parameter *mini-math-solver* acquires step-by-step reasoning ability and achieves 59% accuracy on an unseen 100-problem test set
 
@@ -13,7 +13,7 @@ During training, *mini-math-solver* is instructed to produce two outputs:
 
 Two loss functions are used to measure how well the model performs on each task. A cumulative loss is then obtained by summing these two loss values. Minimizing this cumulative loss improves *mini-math-solver*'s performance on both objectives simultaneously
 
-Once *mini-math-solver*'s weights are tuned to generate explanations, accurate problem-solving is quickly unlocked
+Once *mini-math-solver*'s weights have been adjusted to generate good explanations, accurate problem-solving is also unlocked
 
 ### Samples
 
