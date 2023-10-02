@@ -4,16 +4,16 @@ A small language model capable of solving math word problems
 
 When trained on a single GPU for one hour with only 900 example word problems, a 250M-parameter *mini-math-solver* acquires step-by-step reasoning ability and achieves 59% accuracy on an unseen 100-problem test set
 
-Empirical evidence shows that large language models perform well when instructed to "show their work" and explain their reasoning. *mini-math-solver* demonstrates that the same principle applies to small models as well
+Large language models perform well on math-related tasks when instructed to "show their work" and explain their reasoning. *mini-math-solver* demonstrates that the same principle applies to small models as well
 
 During training, *mini-math-solver* is instructed to produce two outputs: 
 
 1. A numeric answer to a problem based on a ground truth label
 2. An explanation of its answer using an example written by a larger language model
 
-A loss function measures how well it performs on the two tasks. By minimizing this loss, *mini-math-solver* improves its performance on both objectives
+Two loss functions are used to measure how well the model performs on each task. A cumulative loss is then obtained by summing these two loss values. Minimizing this cumulative loss improves *mini-math-solver*'s performance on both objectives simultaneously
 
-Once *mini-math-solver*'s weights acquire an ability to explain answers, accurate problem-solving is quickly unlocked
+Once *mini-math-solver*'s weights are tuned to generate explanations, accurate problem-solving is quickly unlocked
 
 ### Samples
 
