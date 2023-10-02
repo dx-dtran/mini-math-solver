@@ -71,6 +71,16 @@ $ pip install torch numpy transformers datasets sentencepiece protobuf
 
 ### Usage
 
+Train with an NVIDIA GPU with at least 24GB of VRAM
+
 ```shell
 $ python train.py
+```
+
+The training script produces a set of model checkpoint weights
+
+Interact with the model
+
+```shell
+$ python inference.py
 ```
